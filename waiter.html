@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Официант</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+
+        header {
+            background-color: #333;
+            padding: 15px;
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 20px;
+            
+        }
+
+        nav{
+            display: flex;
+            margin-top: 20px;
+        }
+
+        nav button {
+            margin: 0 15px;
+            padding: 10px 25px;
+            font-size: 18px;
+            color: #fff;
+            background-color: #555;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        nav button:hover {
+            background-color: #777;
+        }
+
+        .menu-container, .order-container, .payment-container {
+            margin: 20px auto;
+            width: 80%;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .menu-item, .order-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .menu-item img {
+            max-width: 120px;
+            max-height: 120px;
+            border-radius: 5px;
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 2px 5px; /* Уменьшенные отступы для кнопки удаления */
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 12px; /* Уменьшенный шрифт */
+            width: 25px; /* Уменьшенная ширина кнопки */
+            height: 25px; /* Уменьшенная высота кнопки */
+        }
+
+        input, select, button {
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: calc(100% - 24px);
+        }
+
+        input[type="file"] {
+            padding: 3px;
+        }
+
+        h3 {
+            margin: 0 0 20px;
+            font-size: 22px;
+        }
+
+        #qr-code {
+            display: none; /* Скрываем QR-код по умолчанию */
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #guest-orders {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        Официант
+        <nav>
+            <button onclick="toggleSection('menu')">Добавить блюдо в меню</button>
+            <button onclick="toggleSection('order')">Добавить блюдо гостям</button>
+            <button onclick="toggleSection('payment')">Оплата</button>
+        </nav>
+    </header>
+
+    <!-- Секция для добавления блюда в меню -->
+    <div id="menu" class="menu-container">
+        <h3>Добавить блюдо в меню</h3>
+        <input type="text" id="dish-name" placeholder="Название блюда" required>
+        <input type="number" id="dish-price" placeholder="Цена" required>
+        <input type="file" id="dish-image" accept="image/*" required>
+        <button onclick="addDishToMenu()">Добавить блюдо</button>
+        <h3>Меню</h3>
+        <ul id="menu-list"></ul>
+    </div>
+
+    <!-- Секция для добавления блюд гостям -->
+    <div id="order" class="order-container" style="display: none;">
+        <h3>Добавить блюдо гостям</h3>
+        <select id="table-select">
+            <option value="1">Место 1</option>
+            <option value="2">Место 2</option>
+            <option value="3">Место 3</option>
+            <option value="4">Место 4</option>
+            <option value="5">Место 5</option>
+            <option value="6">Место 6</option>
+        </select>
+        <select id="dish-select"></select>
+        <input type="number" id="dish-quantity" placeholder="Количество" style="width: 1166px;" min="1" value="1" required>
+        <button onclick="addDishToGuest()">Добавить блюдо гостю</button>
+        <h3>Заказы гостей</h3>
+        <div id="guest-orders"></div>
+    </div>
+
+    <!-- Секция оплаты -->
+    <div id="payment" class="payment-container" style="display: none;">
+        <h3>Оплатить заказ</h3>
+        <select id="payment-table-select">
+            <option value="1">Место 1</option>
+            <option value="2">Место 2</option>
+            <option value="3">Место 3</option>
+            <option value="4">Место 4</option>
+            <option value="5">Место 5</option>
+            <option value="6">Место 6</option>
+        </select>
+        <button onclick="processCashPayment()">Оплата наличными</button>
+        <!-- <button onclick="processQrPayment()">Оплата через QR</button> -->
+    </div>
+
+    <!-- QR-код для оплаты -->
+    <div id="qr-code">
+        <h3>QR-код для оплаты:</h3>
+        <img id="qr-image" src="./photo_2024-11-02_22-59-25.jpg" alt="QR-код" style="width: 200px; height: 200px;">
+        <p id="qr-details"></p>
+    </div>
+
+    <script>
+        let menu = JSON.parse(localStorage.getItem('menu')) || [];
+        let guestOrders = JSON.parse(localStorage.getItem('guestOrders')) || {};
+
+        function toggleSection(section) {
+            document.getElementById('menu').style.display = section === 'menu' ? 'block' : 'none';
+            document.getElementById('order').style.display = section === 'order' ? 'block' : 'none';
+            document.getElementById('payment').style.display = section === 'payment' ? 'block' : 'none';
+            if (section === 'order') displayGuestOrders();
+            if (section === 'payment') document.getElementById('qr-code').style.display = 'none'; // Скрываем QR-код при смене секции
+        }
+
+        function displayMenu() {
+            const menuList = document.getElementById('menu-list');
+            const dishSelect = document.getElementById('dish-select');
+            menuList.innerHTML = '';
+            dishSelect.innerHTML = '';
+
+            menu.forEach((dish, index) => {
+                const item = document.createElement('li');
+                item.className = 'menu-item';
+                item.innerHTML = `
+                    <img src="${dish.image}" alt="${dish.name}">
+                    <p>${dish.name} - ${dish.price} сум</p>
+                    <button class="delete-button" onclick="deleteDish(${index})">X</button>
+                `;
+                menuList.appendChild(item);
+
+                const option = document.createElement('option');
+                option.value = dish.name;
+                option.textContent = `${dish.name} - ${dish.price} сум`;
+                dishSelect.appendChild(option);
+            });
+        }
+
+        function addDishToMenu() {
+            const name = document.getElementById('dish-name').value;
+            const price = parseFloat(document.getElementById('dish-price').value);
+            const imageInput = document.getElementById('dish-image');
+            if (name && !isNaN(price) && imageInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const image = event.target.result;
+                    menu.push({ name, price, image });
+                    localStorage.setItem('menu', JSON.stringify(menu));
+                    displayMenu();
+                    document.getElementById('dish-name').value = '';
+                    document.getElementById('dish-price').value = '';
+                    document.getElementById('dish-image').value = '';
+                };
+                reader.readAsDataURL(imageInput.files[0]);
+            } else {
+                alert("Заполните все поля и добавьте изображение!");
+            }
+        }
+
+        function deleteDish(index) {
+            menu.splice(index, 1);
+            localStorage.setItem('menu', JSON.stringify(menu));
+            displayMenu();
+        }
+
+        function addDishToGuest() {
+            const table = document.getElementById('table-select').value;
+            const dishName = document.getElementById('dish-select').value;
+            const quantity = parseInt(document.getElementById('dish-quantity').value);
+
+            const dish = menu.find(item => item.name === dishName);
+            if (dish && quantity > 0) {
+                if (!guestOrders[table]) {
+                    guestOrders[table] = { items: [], totalPrice: 0 };
+                }
+                guestOrders[table].items.push({ name: dish.name, price: dish.price, quantity });
+                guestOrders[table].totalPrice += dish.price * quantity;
+                localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+                displayGuestOrders();
+            } else {
+                alert("Пожалуйста, выберите блюдо и введите количество!");
+            }
+        }
+
+        function displayGuestOrders() {
+            const guestOrdersDiv = document.getElementById('guest-orders');
+            guestOrdersDiv.innerHTML = '';
+
+            for (let table in guestOrders) {
+                const order = guestOrders[table];
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `<strong>Столик ${table}</strong>`;
+                order.items.forEach((item, index) => {
+                    orderDiv.innerHTML += `
+                        <p>${item.name} x${item.quantity} - ${item.price * item.quantity} сум 
+                        <button class="delete-button" onclick="removeDishFromGuest('${table}', ${index})">X</button>
+                        </p>`;
+                });
+                orderDiv.innerHTML += `<strong>Итог: ${order.totalPrice} сум</strong>`;
+                guestOrdersDiv.appendChild(orderDiv);
+            }
+        }
+
+        function removeDishFromGuest(table, index) {
+            const order = guestOrders[table];
+            const removedItem = order.items[index];
+            order.totalPrice -= removedItem.price * removedItem.quantity;
+            order.items.splice(index, 1);
+            if (order.items.length === 0) delete guestOrders[table]; // Удаляем заказ, если он пустой
+            localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+            displayGuestOrders();
+        }
+
+        function processCashPayment() {
+            const table = document.getElementById('payment-table-select').value;
+            if (guestOrders[table]) {
+                delete guestOrders[table];
+                localStorage.setItem('guestOrders', JSON.stringify(guestOrders));
+                displayGuestOrders();
+                alert("Оплата наличными завершена. Заказ удален.");
+                document.getElementById('qr-code').style.display = 'none'; // Скрываем QR-код
+            } else {
+                alert("Нет заказов для данного столика.");
+            }
+        }
+
+        function processQrPayment() {
+            const table = document.getElementById('payment-table-select').value;
+            if (guestOrders[table]) {
+                const order = guestOrders[table];
+                const qrCodeDiv = document.getElementById('qr-code');
+                document.getElementById('qr-details').innerText = `Заказ: ${order.items.map(item => `${item.name} x${item.quantity}`).join(', ')}\nИтог: ${order.totalPrice} сум`;
+                document.getElementById('qr-image').src = "https://via.placeholder.com/200"; // Здесь можно заменить на генерацию QR-кода
+                qrCodeDiv.style.display = 'block'; // Показываем QR-код
+                alert("QR-код для оплаты сгенерирован.");
+            } else {
+                alert("Нет заказов для данного столика.");
+            }
+        }
+
+        displayMenu();
+    </script>
+</body>
+</html>

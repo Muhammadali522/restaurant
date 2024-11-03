@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гости</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        #qr-code-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+
+        #qr-code-modal .modal-content {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        #qr-code img {
+            width: 300px; 
+            height: 300px;
+        }
+
+        .guest-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .guest-table {
+            width: 250px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .guest-table h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .dish-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .total-price {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .pay-button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn1{
+            width: 300px;
+            height: 50px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Заказ гостей</h2>
+    <div class="guest-container" id="guest-container">
+        <!-- Блоки для каждого стола -->
+    </div>
+
+    <!-- Модальное окно для QR-кода и суммы -->
+    <div id="qr-code-modal">
+        <div class="modal-content">
+            <h2>Оплатите заказ</h2>
+            <ul id="order-summary"></ul>
+            <p class="total-price" id="total-price-display"></p>
+            <div id="qr-code">
+                <h3>Сканируйте QR-код для оплаты</h3>
+                <img src="photo_2024-11-02_22-59-25.jpg" alt="QR-код для оплаты">
+            </div>
+            <!-- Кнопка подтверждения оплаты -->
+            <button class="btn1" id="confirm-payment-button">Оплата завершена</button>
+        </div>
+    </div>
+
+    <script>
+        // Загрузка данных из LocalStorage и отображение заказов
+        function loadGuestOrders() {
+            const guestContainer = document.getElementById('guest-container');
+            guestContainer.innerHTML = '';
+            const orders = JSON.parse(localStorage.getItem('guestOrders') || '{}');
+
+            for (const table in orders) {
+                const order = orders[table];
+                const dishCounts = {};
+
+                // Подсчитываем количество каждого блюда
+                order.items.forEach(item => {
+                    dishCounts[item.name] = (dishCounts[item.name] || 0) + item.quantity;
+                });
+
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'guest-table';
+                tableDiv.innerHTML = `<h3>Место ${table}</h3>
+                    <ul class="dish-list">${Object.entries(dishCounts).map(([name, count]) => `<li>${name} - ${count} шт. - ${order.items.find(item => item.name === name).price} сум</li>`).join('')}</ul>
+                    <p class="total-price">Итого: ${order.totalPrice} сум</p>
+                    <button class="pay-button" onclick="showQrCode(${table})">Оплатить картой</button>`;
+                guestContainer.appendChild(tableDiv);
+            }
+        }
+
+        // Функция для отображения QR-кода для выбранного стола
+        function showQrCode(table) {
+            const orders = JSON.parse(localStorage.getItem('guestOrders') || '{}');
+            const order = orders[table];
+            const orderSummary = document.getElementById('order-summary');
+            const dishCounts = {};
+
+            // Подсчитываем количество каждого блюда для отображения в QR-коде
+            order.items.forEach(item => {
+                dishCounts[item.name] = (dishCounts[item.name] || 0) + item.quantity;
+            });
+
+            orderSummary.innerHTML = Object.entries(dishCounts).map(([name, count]) => `<li>${name} - ${count} шт. - ${order.items.find(item => item.name === name).price} сум</li>`).join('');
+            document.getElementById('total-price-display').textContent = `Итого: ${order.totalPrice} сум`;
+            document.getElementById('qr-code-modal').style.display = 'flex';
+
+            // Передаем номер столика в confirmPayment
+            document.getElementById('confirm-payment-button').onclick = function() {
+                confirmPayment(table);
+            };
+        }
+
+        // Функция для подтверждения оплаты и обнуления заказа для выбранного стола
+        function confirmPayment(table) {
+            const orders = JSON.parse(localStorage.getItem('guestOrders') || '{}');
+
+            // Обнуляем заказ только для выбранного столика
+            if (orders[table]) {
+                orders[table] = { items: [], totalPrice: 0 };
+                localStorage.setItem('guestOrders', JSON.stringify(orders));
+                loadGuestOrders();
+            }
+
+            document.getElementById('qr-code-modal').style.display = 'none';
+        }
+
+        // Обновление экрана заказов
+        loadGuestOrders();
+
+        // Обновление списка при изменениях в LocalStorage
+        window.addEventListener('storage', loadGuestOrders);
+    </script>
+</body>
+</html>
